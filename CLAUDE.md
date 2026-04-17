@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run setup        # First-time setup: install deps, generate Prisma client, run migrations
 npm run dev          # Start dev server with Turbopack
+npm run dev:daemon   # Start dev server in background, logs to logs.txt
 npm run build        # Production build
 npm run lint         # Run ESLint
 npm run test         # Run tests with Vitest
@@ -17,7 +18,7 @@ Run a single test file: `npx vitest run src/path/to/file.test.ts`
 
 ## Environment
 
-Requires `ANTHROPIC_API_KEY` for AI features. Without it, the app falls back to a `MockLanguageModel` in `src/lib/provider.ts` that returns static example components.
+Requires `ANTHROPIC_API_KEY` for AI features. Without it, the app falls back to a `MockLanguageModel` in `src/lib/provider.ts` that returns static example components. The real model used is `claude-haiku-4-5` (configurable in `src/lib/provider.ts`).
 
 ## Architecture
 
@@ -45,7 +46,9 @@ The system prompt in `src/lib/prompts/generation.tsx` instructs the model to gen
 
 ### Preview
 
-`src/components/preview/PreviewFrame.tsx` renders a sandboxed iframe. `src/lib/transform/jsx-transformer.ts` uses Babel to transpile JSX→JS at runtime, resolves imports from the virtual file system into Blob URLs, and fetches third-party packages from `https://esm.sh`.
+`src/components/preview/PreviewFrame.tsx` renders a sandboxed iframe. `src/lib/transform/jsx-transformer.ts` uses Babel to transpile JSX→JS at runtime, resolves imports from the virtual file system into Blob URLs, and fetches third-party packages from `https://esm.sh`. The preview injects Tailwind CSS via CDN (`cdn.tailwindcss.com`), so generated components can use Tailwind classes without any config.
+
+Entry point detection order: `/App.jsx` → `/App.tsx` → `/index.jsx` → `/index.tsx` → `/src/App.jsx` → `/src/App.tsx` → first `.jsx`/`.tsx` file found. The `refreshTrigger` counter in `FileSystemContext` drives re-renders of the preview.
 
 ### Authentication
 
@@ -53,9 +56,16 @@ JWT tokens stored in httpOnly cookies (7-day expiry). `src/lib/auth.ts` handles 
 
 Anonymous users can work without logging in; `src/lib/anon-work-tracker.ts` tracks their progress in localStorage and prompts sign-up at a threshold.
 
+### AI-Generated File Conventions
+
+The system prompt (`src/lib/prompts/generation.tsx`) enforces these rules for AI-generated code:
+- Every project must have `/App.jsx` as its root entry point with a default export
+- All local imports use the `@/` alias (e.g. `import Foo from '@/components/Foo'`)
+- Style with Tailwind only — no hardcoded styles, no HTML files
+
 ### Database
 
-Prisma + SQLite. Schema in `prisma/schema.prisma`: `User` has many `Project`s. Project stores messages and file system state as JSON strings.
+Prisma + SQLite. Schema in `prisma/schema.prisma`: `User` has many `Project`s. Project stores messages and file system state as JSON strings. The Prisma client is generated to `src/generated/prisma` (non-standard path set in `prisma/schema.prisma`).
 
 ### State Management
 
