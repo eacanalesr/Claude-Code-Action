@@ -101,7 +101,7 @@ export function PreviewFrame() {
   if (error) {
     if (error === "firstLoad") {
       return (
-        <div className="h-full flex items-center justify-center p-8 bg-gray-50">
+        <div className="h-full flex items-start justify-center p-8 bg-gray-50">
           <div className="text-center max-w-md">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
               <svg
